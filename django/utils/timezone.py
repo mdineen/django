@@ -351,21 +351,22 @@ def is_naive(value):
 
 
 def make_aware(value, timezone=None):
-    """
-    Makes a naive datetime.datetime in a given time zone aware.
-    """
-    if timezone is None:
-        timezone = get_current_timezone()
-    if hasattr(timezone, 'localize'):
-        # This method is available for pytz time zones.
-        return timezone.localize(value, is_dst=None)
+  """
+  Borrowed directly from the Celery project:
+  https://github.com/celery/celery/blob/ea4581f4dedcbbaf697d980da31286514ef56640/celery/utils/timeutils.py
+  Sets the timezone for a datetime object.
+  """
+    try:
+        _localize = tz.localize
+    except AttributeError:
+        return dt.replace(tzinfo=tz)
     else:
-        # Check that we won't overwrite the timezone of an aware datetime.
-        if is_aware(value):
-            raise ValueError(
-                "make_aware expects a naive datetime, got %s" % value)
-        # This may be wrong around DST changes!
-        return value.replace(tzinfo=timezone)
+        # works on pytz timezones
+        try:
+            return _localize(dt, is_dst=None)
+        except AmbiguousTimeError:
+            return min(_localize(dt, is_dst=True),
+                       _localize(dt, is_dst=False))
 
 
 def make_naive(value, timezone=None):
